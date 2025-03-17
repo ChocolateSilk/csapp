@@ -3,8 +3,7 @@
 其中用了Ubuntu的镜像，将实验目录挂载到了容器中。
  
 ## Phase 1
-首先：
-
+首先：<br>
 `objdump -d bomb > bomb.txt`
 ```
 0000000000400ee0 <phase_1>:
@@ -18,12 +17,12 @@
   400efb:	c3                   	ret
 ```
 
-gdb中，运行：
-`break *0400ee0`
-`x/s 0x402400` (x是“examine”，指定格式字符串“s”)
-得到：
-`0x402400:	"Border relations with Canada have never been better."`
-说明这是作为第二个参数传到strings_not_equal这个函数中的。答案就是句话了。
+gdb中，运行：<br>
+`break *0400ee0`<br>
+`x/s 0x402400` (x是“examine”，指定格式字符串“s”)<br>
+得到：<br>
+`0x402400:	"Border relations with Canada have never been better."`<br>
+说明这是作为第二个参数传到strings_not_equal这个函数中的。答案就是句话了。<br>
  
 ## Phase 2
 ```
@@ -99,21 +98,21 @@ gdb中，运行：
   400fcd:	c3                   	ret
 ```
 
-观察来，好像栈就是会预留16个空字节。数组的大小可以通过（rsp-16）/4得到。
-看来代码用到了sscanf函数，函数原型是
+观察来，好像栈就是会预留16个空字节。数组的大小可以通过（rsp-16）/4得到。<br>
+看来代码用到了sscanf函数，函数原型是<br>
 `int sscanf(const char *str, const char *format, ...);`
-[参考](https://www.tutorialspoint.com/c_standard_library/c_function_sscanf.htm)说明如下：
-**str**: The input string from which to read.
-**format**: A format string that specifies how to interpret the input string.
-**...**: Additional arguments pointing to variables where the extracted values will be stored.
-sscanf的返回值是成功解析的值的个数。
-看起来传给esi的是格式参数。但是是什么其实不重要，因为通过后面rdx和rcx的预留位置可以推测，是两个四字节的参数，所以我猜测是整型。在400f60设置了断点。
-`break *0x400f60`
-检查：
-`x/wx $rps+8`
-`x/wx $rps+12`
-和推测得一样，给sscanf解析出的结果是预留的位置。
-下面用到了switch语句的跳转表，而且获悉如果 [rsp+8] > 7会爆炸，可以推断有6条语句，且 [rcx] < 7。我尝试了 1 1。
+[参考](https://www.tutorialspoint.com/c_standard_library/c_function_sscanf.htm)说明如下：<br>
+**str**: The input string from which to read. <br>
+**format**: A format string that specifies how to interpret the input string.<br>
+**...**: Additional arguments pointing to variables where the extracted values will be stored.<br>
+sscanf的返回值是成功解析的值的个数。<br>
+看起来传给esi的是格式参数。但是是什么其实不重要，因为通过后面rdx和rcx的预留位置可以推测，是两个四字节的参数，所以我猜测是整型。在400f60设置了断点。<br>
+`break *0x400f60`<br>
+检查：<br>
+`x/wx $rps+8`<br>
+`x/wx $rps+12`<br>
+和推测得一样，给sscanf解析出的结果是预留的位置。<br>
+下面用到了switch语句的跳转表，而且获悉如果 [rsp+8] > 7会爆炸，可以推断有6条语句，且 [rcx] < 7。我尝试了 1 1。<br>
 发现运行到0x400f75会直接跳转到0x400fb9。后面很好读，就是比较sccanf第二个解析出来的参数是不是和eax中的一样（0x137）。最终答案是 `1 311`。这题是多解的。
  
 ## Phase 4
@@ -167,8 +166,8 @@ sscanf的返回值是成功解析的值的个数。
   401061:	c3                   	ret
 ```
 
-这个和上题有点类似。也就是sscanf解析的第一个值（rdi中的值）必须在[0,14]这个区间中，否则满足不了func4的逻辑。
-sscanf的第二个值很直接，就是0。
+这个和上题有点类似。也就是sscanf解析的第一个值（rdi中的值）必须在[0,14]这个区间中，否则满足不了func4的逻辑。<br>
+sscanf的第二个值很直接，就是0。<br>
 看起来func4是递归定义的。我这里答案写的 `1 0`。
 
 ## Phase 5
@@ -215,14 +214,14 @@ sscanf的第二个值很直接，就是0。
   4010f2:	5b                   	pop    %rbx
   4010f3:	c3                   	ret
 ```
-在0x4010ae设了一个断点，看到要比较的字符串是“flyers”，显然这个循环会对我们输入的字符串进行处理。
-`movzbl (%rbx,%rax,1),%ecx` 看起来是读取ascii。
-0x4024b0 处：
-`0x4024b0 <array.3449>:	"maduiersnfotvbylSo you think you can stop the bomb with ctrl-c, do you?"`
-写成数学问题会直观一些，等同与解题：设$\ ascii码 = c_i, (i ∈[1,6])$，$\ c_i\mod 16 ≡ 9, 15, 14, 5, 6, 7$（"flyers"中每个字母对应的偏移），求解$\ c_i$。
-手算的话，$\ c_i$一定是在可见字符里面的，故 $\ 31 <= c_i <= 126$。
-所以 $\ c_i = 16 * k + r_i\,(i ∈[1,6],r_i分别是9, 15, 14, 5, 6, 7。k是正整数) $
-全部的解之组合，就是答案了，所以答案不唯一。
+在0x4010ae设了一个断点，看到要比较的字符串是“flyers”，显然这个循环会对我们输入的字符串进行处理。<br>
+`movzbl (%rbx,%rax,1),%ecx` 看起来是读取ascii。<br>
+0x4024b0 处：<br>
+`0x4024b0 <array.3449>:	"maduiersnfotvbylSo you think you can stop the bomb with ctrl-c, do you?"`<br>
+写成数学问题会直观一些，等同与解题：设 $\ ascii码 = c_i, (i ∈[1,6])$， $\ c_i\mod 16 ≡ 9, 15, 14, 5, 6, 7$（"flyers"中每个字母对应的偏移），求解 $\ c_i$ 。<br>
+手算的话， $\ c_i$ 一定是在可见字符里面的，故 $\ 31 <= c_i <= 126$。<br>
+所以 $\ c_i = 16 * k + r_i \,(i ∈ [1,6], r_i分别是9, 15, 14, 5, 6, 7。k是正整数)$ <br>
+全部的解之组合，就是答案了，所以答案不唯一。<br>
 我给出`9oN5FG`。
 
 ## Phase 6
@@ -317,11 +316,11 @@ sscanf的第二个值很直接，就是0。
   401201:	41 5e                	pop    %r14
   401203:	c3                   	ret
 ```
-这题，一共有五个循环，还是要读取六个数字。但是这次栈分配的空间变大了，为什么呢？
-第一个循环要求要6个相异数字，检查 $ eax - 1 < 5 $，用jbe做无符号比较，就是要求输入值在[1,6]之间。
-[参考](https://earthaa.github.io/2020/01/12/CSAPP-Bomblab/)了一下，得知用到了链表，所以栈空间才变大了。
-第二个循环是用数字7来减去每个储存的值，并储存回 [rax] 的相应位置，处理完了就到下一个循环。
-第三个循环，`mov $0x6032d0,%edx` 看得出 0x6032d0 是链表开始的地方。每次 [rdx + 8] 就知道是访问 node.next ，next 一般在内存地址读取偏移 + 8 的地方，但是从一个 node 到下一个，要16字节。得到
+这题，一共有五个循环，还是要读取六个数字。但是这次栈分配的空间变大了，为什么呢？<br>
+第一个循环要求要6个相异数字，检查 $\ eax - 1 < 5$，用jbe做无符号比较，就是要求输入值在[1,6]之间。<br>
+[参考](https://earthaa.github.io/2020/01/12/CSAPP-Bomblab/)了一下，得知用到了链表，所以栈空间才变大了。<br>
+第二个循环是用数字7来减去每个储存的值，并储存回 [rax] 的相应位置，处理完了就到下一个循环。<br>
+第三个循环，`mov $0x6032d0,%edx` 看得出 0x6032d0 是链表开始的地方。每次 [rdx + 8] 就知道是访问 node.next ，next 一般在内存地址读取偏移 + 8 的地方，但是从一个 node 到下一个，要16字节。得到：<br>
 ```
 0x6032d0   c1   → 0x6032e0
 0x6032e0   c2   → 0x6032f0
@@ -330,10 +329,10 @@ sscanf的第二个值很直接，就是0。
 0x603310   c5   → 0x603320
 0x603320   c6   → NULL
 ```
-第五个循环就是检查倒叙排列，`rbx = [rbx + 8]，[rbx] >= eax`。
-第四个循环好像是重排链表，我看了半天没明白逻辑，所以gdb调试看看。
-break *0x4011ab
-随便输入`4 3 2 5 6 1`
+第五个循环就是检查倒叙排列，`rbx = [rbx + 8]，[rbx] >= eax`。<br>
+第四个循环好像是重排链表，我看了半天没明白逻辑，所以gdb调试看看。<br>
+`break *0x4011ab` <br>
+随便输入`4 3 2 5 6 1`<br>
 ```
 (gdb) x/wx 0x6032d0
 0x6032d0 <node1>:	0x0000014c
@@ -348,10 +347,10 @@ break *0x4011ab
 (gdb) x/wx 0x6032d0+80
 0x603320 <node6>:	0x000001bb
 ```
-我跑很多次循环都没有变值。
+我跑很多次循环都没有变值。<br>
  
-换个输入`1 2 3 4 5 6`
-依旧是：
+换个输入`1 2 3 4 5 6`<br>
+依旧是：<br>
 ```
 (gdb) x/wx 0x6032d0
 0x6032d0 <node1>:	0x0000014c
@@ -366,7 +365,7 @@ break *0x4011ab
 (gdb) x/wx 0x6032d0+80
 0x603320 <node6>:	0x000001bb
 ```
-嗯？和输入没有关系（？）。我感觉题目的意图应该是排序这六个寄存器的值，从大到小`3 4 5 6 1 2`。
+嗯？和输入没有关系（？）。我感觉题目的意图应该是排序这六个寄存器的值，从大到小`3 4 5 6 1 2`。<br>
 但是这些输入要和7做差，所以输入了`4 3 2 1 6 5`。
 
 
